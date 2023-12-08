@@ -1,0 +1,7 @@
+brdfs/*
+output/*
+__pycache__/*
+.vscode/*
+*.exr
+*.png
+*.pth
