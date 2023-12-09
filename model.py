@@ -1,6 +1,6 @@
 import torch
 
-N_NEURONS = 64
+N_NEURONS = 32
 # architecture
 class NN(torch.nn.Module):
     def __init__(self,input_size=3, output_size=3):

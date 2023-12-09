@@ -7,8 +7,8 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--niter", default = "10000")
-parser.add_argument("--batchsize", default = "2**7")
+parser.add_argument("--niter", default = "400000")
+parser.add_argument("--batchsize", default = "2**8")
 parser.add_argument("--filename", default = "alum-bronze.binary")
 args = parser.parse_args()
 
@@ -48,11 +48,13 @@ conca_in = torch.stack([theta_h_in, theta_d_in, phi_d_in], dim=1)
 # loss function, you may play more with it, Lin God!
 # I'm not quite sure whether this will influence a lot, I haven't tried it a lot.
 criterion = torch.nn.MSELoss()
-
+we_eval = True
+N_data = 2**21
 print("Start training...")
 for iteration in (range(niter)):
     # shuffle data
-    indices = torch.randperm(conca_in.shape[0]).to(device)
+    indices = np.random.randint(0, conca_in.shape[0], N_data)
+    
     conca_in = conca_in[indices]
     brdf_gt = brdf_gt[indices]
     
@@ -67,7 +69,7 @@ for iteration in (range(niter)):
     optimizer.step()
 
     # print loss
-    if iteration % 100 == 0:
+    if iteration % 1000 == 0 and we_eval:
         brdf_gt_ = brdf_gt.detach().cpu().numpy()
         brdf_pred_ = brdf_pred.detach().cpu().numpy()
         idx = torch.randint(0, conca_in.shape[0], (1,)).item()
@@ -75,4 +77,4 @@ for iteration in (range(niter)):
         print("Prediction: ", brdf_pred_[idx],"idx: ",idx)
         print("Iteration: %d, Loss: %f" % (iteration, loss.item()))
 
-torch.save(model.state_dict(), "simple_mlp_"+ filename + ".pth")
+torch.save(model.state_dict(), "be_simple_mlp_"+ filename + ".pth")

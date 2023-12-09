@@ -31,7 +31,7 @@ plane1_theta_d, plane2_theta_d = plane1_theta_d.flatten(), plane2_theta_d.flatte
 plane1_theta_h, plane2_theta_h = plane1_theta_h.flatten(), plane2_theta_h.flatten()
 
 
-fixed_angle = "np.pi * 0.06"
+fixed_angle = "np.pi * 0.3"
 repeated_array = np.full(n_split**2, eval(fixed_angle))
 
 
