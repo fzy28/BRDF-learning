@@ -4,6 +4,6 @@ __pycache__/*
 */__pycache__/*
 .vscode/*
 *.exr
-*.png
+
 disney_bsdf_test/*
 scenes/*
