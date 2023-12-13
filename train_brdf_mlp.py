@@ -8,7 +8,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--niter", default = "400000")
-parser.add_argument("--batchsize", default = "2**8")
+parser.add_argument("--batchsize", default = "2**21")
 parser.add_argument("--filename", default = "alum-bronze.binary")
 args = parser.parse_args()
 
@@ -23,45 +23,45 @@ fit_brdf = MeasuredBRDF(filename)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = NN().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+# model_path = "be_simple_mlp_"+ filename + ".pth"
+# model.load_state_dict(torch.load(model_path))
 
+n_split = 360
 # stratified sampling theta_h, theta_d, phi_d
-theta_h_in = np.linspace(0, np.pi / 2, batchsize)
-theta_d_in = np.linspace(0, np.pi / 2, batchsize)
-phi_d_in = np.linspace(0, np.pi, batchsize)
+theta_h_in = np.linspace(0, np.pi / 2, n_split )
+# theta_d_in_coarse = np.linspace(0, np.pi / 2 * 1.2 / 1.6, 90)
+# theta_d_in_fine = np.linspace(np.pi / 2 * 1.2 / 1.6, np.pi / 2, 90)
+# theta_d_in = np.concatenate([theta_d_in_coarse, theta_d_in_fine])
+theta_d_in = np.linspace(0, np.pi / 2, n_split)
+phi_d_in = np.linspace(0, np.pi, n_split * 2)
 
 theta_h_in, theta_d_in, phi_d_in = np.meshgrid(theta_h_in, theta_d_in, phi_d_in)
-theta_h_in, theta_d_in, phi_d_in = theta_h_in.flatten(),theta_d_in.flatten(),phi_d_in.flatten()
+theta_h, theta_d, phi_d = theta_h_in.flatten(),theta_d_in.flatten(),phi_d_in.flatten()
 
-# compute ground truth
-brdf_values = fit_brdf.half_diff_look_up_brdf(theta_h_in, theta_d_in, phi_d_in)
-brdf_gt = torch.from_numpy(brdf_values).float().to(device)
 
-# compute input of the network
-theta_h_in = torch.from_numpy(theta_h_in).float().to(device)
-theta_d_in = torch.from_numpy(theta_d_in).float().to(device)
-phi_d_in = torch.from_numpy(phi_d_in).float().to(device)
-conca_in = torch.stack([theta_h_in, theta_d_in, phi_d_in], dim=1)
-
-# values_torch = model(conca_in)
-# print(conca_in.shape, brdf_values.shape,values_torch.shape)
-
-# loss function, you may play more with it, Lin God!
-# I'm not quite sure whether this will influence a lot, I haven't tried it a lot.
-criterion = torch.nn.MSELoss()
 we_eval = True
-N_data = 2**21
+N_data = theta_h.shape[0]
 print("Start training...")
 for iteration in (range(niter)):
-    # shuffle data
-    indices = np.random.randint(0, conca_in.shape[0], N_data)
+    indices = np.random.randint(0, N_data, batchsize)
+    theta_h_in = theta_h[indices] + np.random.rand(batchsize) * np.pi / n_split / 2
+    theta_d_in = theta_d[indices] + np.random.rand(batchsize) * np.pi / n_split / 2
+    phi_d_in = phi_d[indices] + np.random.rand(batchsize) * np.pi / n_split
     
-    conca_in = conca_in[indices]
-    brdf_gt = brdf_gt[indices]
+    # compute ground truth
+    brdf_values = fit_brdf.half_diff_look_up_brdf(theta_h_in, theta_d_in, phi_d_in)
+    brdf_gt = torch.from_numpy(brdf_values).float().to(device)
+
+    # compute input of the network
+    theta_h_in = torch.from_numpy(theta_h_in).float().to(device)
+    theta_d_in = torch.from_numpy(theta_d_in).float().to(device)
+    phi_d_in = torch.from_numpy(phi_d_in).float().to(device)
+    conca_in = torch.stack([theta_h_in, theta_d_in, phi_d_in], dim=1)
     
     # forward
     brdf_pred = model(conca_in)
     
-    loss = criterion(brdf_pred, brdf_gt)
+    loss = torch.mean(torch.abs(brdf_pred - brdf_gt))
 
     # backprop
     optimizer.zero_grad()
@@ -69,12 +69,12 @@ for iteration in (range(niter)):
     optimizer.step()
 
     # print loss
-    if iteration % 1000 == 0 and we_eval:
+    if iteration % 100 == 0 and we_eval:
         brdf_gt_ = brdf_gt.detach().cpu().numpy()
         brdf_pred_ = brdf_pred.detach().cpu().numpy()
-        idx = torch.randint(0, conca_in.shape[0], (1,)).item()
+        idx = 90000
         print("Ground truth: ", brdf_gt_[idx],"idx: ",idx)
         print("Prediction: ", brdf_pred_[idx],"idx: ",idx)
         print("Iteration: %d, Loss: %f" % (iteration, loss.item()))
-
-torch.save(model.state_dict(), "be_simple_mlp_"+ filename + ".pth")
+    if iteration % 10000 == 0:
+        torch.save(model.state_dict(), "be_simple_mlp_"+ filename + ".pth")

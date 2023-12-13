@@ -29,10 +29,8 @@ class MeasuredBRDF:
         self.filename = os.path.join(merl_path, filename)
         self.brdf = None
         self.load_brdf()
-
-    def brdf_array(self):
+    def get_array(self):
         return self.brdf
-    
     def load_brdf(self):
         try:
             with open(self.filename, "rb") as file:
@@ -164,14 +162,21 @@ class MeasuredBRDF:
         normal = np.array([0, 0, 1])
 
         tmp = rotate_vector(in_vec, normal, -phi_h)
+        tmp = tmp / np.linalg.norm(tmp,axis=1, keepdims=True)
         diff = rotate_vector(tmp, bi_normal, -theta_h)
-
+        diff = diff / np.linalg.norm(diff,axis=1, keepdims=True)
+        
         theta_d = np.arccos(diff[:,2])
         phi_d = np.arctan2(diff[:,1], diff[:,0])
         phi_d += np.where(phi_d < 0, np.pi, 0)
         
         theta_h = np.where(theta_h <= 0, 0, theta_h)
-        
+        if np.isnan(theta_h).any():
+            print("theta_h is nan")
+        if np.isnan(theta_d).any():
+            print("theta_d is nan")
+        if np.isnan(phi_d).any():
+            print("phi_d is nan")
         
         return self.half_diff_look_up_brdf(theta_h, theta_d, phi_d, use_interpolation)
 

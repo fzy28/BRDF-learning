@@ -7,7 +7,7 @@ from model import *
 import matplotlib.pyplot as plt
 
 filename = "alum-bronze.binary"
-model_path = "simple_mlp_"+ filename + ".pth"
+model_path = "be_simple_mlp_"+ filename + ".pth"
 
 fit_brdf = MeasuredBRDF(filename)
 
@@ -16,7 +16,7 @@ model = NN().to(device)
 model.load_state_dict(torch.load(model_path))
 model.eval()
 
-n_split = 256
+n_split = 360
 
 theta_h = np.linspace(0, np.pi / 2, n_split)
 theta_d = np.linspace(0, np.pi / 2, n_split)
@@ -45,7 +45,7 @@ gt_fixed_h = fit_brdf.half_diff_look_up_brdf(
     repeated_array, plane1_theta_h, plane2_theta_h, use_interpolation=False
 )
 pred_fixed_h = model(conca_in_fixed_h).detach().cpu().numpy()
-
+pred_fixed_h= np.clip(pred_fixed_h,0,None)
 gt_fixed_h = gt_fixed_h.reshape(n_split, n_split,3)
 pred_fixed_h = pred_fixed_h.reshape(n_split, n_split,3)
 
@@ -59,6 +59,7 @@ vmax = max(R_pred.max(), R_gt.max())
 levels = np.linspace(vmin, vmax, 100)
 plt.figure(figsize=(16, 16))
 plt.subplot(1, 2, 1)
+
 plt.contourf(theta_d, phi_d, R_pred, cmap='viridis', levels=levels,vmin=vmin, vmax=vmax)
 plt.colorbar(label='pred_fixed_h value')
 plt.xlabel('theta_d (x)')

@@ -4,13 +4,13 @@ import os
 import time
 import drjit as dr
 
+from measured_brdf import MyBSDF
 start_time = time.time()
 mi.set_variant('llvm_ad_rgb')
 
-
 bsdf = mi.load_dict({
     'type': 'roughconductor',
-    'alpha': 0.2,
+    'alpha': 0.1,
     'distribution': 'ggx'
 })
 

@@ -1,7 +1,9 @@
 brdfs/*
 output/*
 __pycache__/*
+*/__pycache__/*
 .vscode/*
 *.exr
 *.png
-*.pth
+disney_bsdf_test/*
+scenes/*
