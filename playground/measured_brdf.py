@@ -55,16 +55,17 @@ class MyBSDF(mi.BSDF):
         # Compute Fresnel terms
         
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
-
+        t = si.wi
+        t1 = si.to_local(si.wi) 
         active &= cos_theta_i > 0
 
         bs = mi.BSDFSample3f()
-        bs.wo = mi.warp.square_to_cosine_hemisphere(sample2)
-        bs.pdf = mi.warp.square_to_cosine_hemisphere_pdf(bs.wo)
+        bs.wo = mi.warp.square_to_beckmann(sample2, 0.1)
+        bs.pdf = mi.warp.square_to_beckmann_pdf(bs.wo, 0.1)
         bs.eta = 1.0
         bs.sampled_type = mi.UInt32(+self.m_flags)
         bs.sampled_component = 0
-            
+        
         wi = si.wi
         wo = bs.wo       
         
@@ -88,7 +89,7 @@ class MyBSDF(mi.BSDF):
         value = MeasuredBRDF_global.half_diff_look_up_brdf(theta_h, theta_d, phi_d)
         
         value = mi.Vector3f(value[...,0],value[...,1],value[...,2])
-        return dr.select((cos_theta_i > 0.0) & (cos_theta_o > 0.0), value, mi.Vector3f(0))
+        return 0.0
     
 
     def pdf(self, ctx, si, wo, active=True):
@@ -96,9 +97,9 @@ class MyBSDF(mi.BSDF):
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
         cos_theta_o = mi.Frame3f.cos_theta(wo)
         
-        pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
+        pdf = mi.warp.square_to_beckmann_pdf(wo, 0.1)
 
-        return dr.select((cos_theta_i > 0.0) & (cos_theta_o > 0.0), pdf, 0.0)
+        return 0.0
 
     def eval_pdf(self, ctx, si, wo, active=True):
         return self.eval(ctx, si, wo, active), self.pdf(ctx, si, wo, active)

@@ -4,6 +4,8 @@ __pycache__/*
 */__pycache__/*
 .vscode/*
 *.exr
-
+/nps/latent_vectors/*
 disney_bsdf_test/*
 scenes/*
+*.pth
+*.png

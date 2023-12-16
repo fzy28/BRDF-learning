@@ -8,10 +8,22 @@ import numpy as np
 from tqdm import tqdm
 from scipy.spatial.transform import Rotation as R
 from model import *
+import torch
+import numpy as np
+from nps.nps import NPsDecoder
+
+z = np.load("./nps/latent_vectors/alum-bronze_latentVector.npy")
+z = torch.from_numpy(z)
+z = z.to('cuda').float()
+
+module = NPsDecoder()
+module.load_state_dict(torch.load('nps/model/decoder.pt'))
+module = module.to('cuda').eval()
 
 mi.set_variant("cuda_ad_rgb")
 dr.set_flag(dr.JitFlag.VCallRecord, False)
 dr.set_flag(dr.JitFlag.LoopRecord, False)
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -42,7 +54,7 @@ def rotate_vector_tensor2(vector, axis, angle):
     return torch.bmm(R, vector.unsqueeze(-1)).squeeze(-1)
 
 def std_to_half_diff(wi, wo):
-    half = dr.normalize((wi + wo) / 2).torch()
+    half = dr.normalize(wi + wo).torch()
     theta_h = torch.acos(half[..., 2])
     phi_h = torch.atan2(half[..., 1], half[..., 0])
     bi_normal = torch.tensor([0, 1, 0], dtype=torch.float32, device=device)
@@ -59,49 +71,25 @@ def std_to_half_diff(wi, wo):
     phi_d += torch.where(phi_d < 0, torch.pi, 0)
     return theta_h, theta_d, phi_d
 
-def std_to_half_diff_world(wi, wo, n):
-    
-    s,t =  mi.coordinate_system(n)
-    
-    wilocal = mi.Vector3f(dr.dot(wi, s), dr.dot(wi, t), dr.dot(wi, n))
-    wilocal = dr.normalize(wilocal)
-    wolocal = mi.Vector3f(dr.dot(wo, s), dr.dot(wo, t), dr.dot(wo, n))
-    wolocal = dr.normalize(wolocal)
-    half = (wilocal + wolocal) / 2
-    half = dr.normalize(half).torch()
 
-    theta_h = torch.acos(half[..., 2])
-    phi_h = torch.atan2(half[..., 1], half[..., 0])
-    
-    bi_normal = torch.tensor([0, 1, 0], dtype=torch.float32, device=device)
-    normal = torch.tensor([0, 0, 1], dtype=torch.float32, device=device)
-    
-    tmp = rotate_vector_tensor2(half, normal, -phi_h)
-    tmp = tmp / torch.norm(tmp, dim=1, keepdim=True)
-    diff = rotate_vector_tensor2(tmp, bi_normal, -theta_h)
-    diff = diff / torch.norm(diff, dim=1, keepdim=True)
-    
-    theta_d = torch.acos(diff[..., 2])
-    phi_d = torch.atan2(diff[..., 1], diff[..., 0])
-    phi_d += torch.where(phi_d < 0, torch.pi, 0)
-    return theta_h, theta_d, phi_d
+model_global = None
 
-
-model_global = NN().to(device)
-model_path = "be_simple_mlp_" + "alum-bronze.binary" + ".pth"
-model_global.load_state_dict(torch.load(model_path))
-model_global.eval()
 
 class MyBSDF(mi.BSDF):
     def __init__(self, props):
         mi.BSDF.__init__(self, props)
 
         self.filename = props["filename"]
+        # global model_global
+        # if model_global is None:
+        #     model_global = NN().to(device)
+        #     model_path = "be_simple_mlp_" + self.filename + ".pth"
+        #     model_global.load_state_dict(torch.load(model_path))
+        #     model_global.eval()
         # Set the BSDF flags
         reflection_flags = (
             mi.BSDFFlags.DiffuseReflection |
-            mi.BSDFFlags.GlossyReflection 
-            | mi.BSDFFlags.FrontSide
+             mi.BSDFFlags.FrontSide
         )
         self.m_components = [reflection_flags]
         self.m_flags = reflection_flags
@@ -110,7 +98,7 @@ class MyBSDF(mi.BSDF):
         # Compute Fresnel terms
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
-
+        
         active &= cos_theta_i > 0
 
         bs = mi.BSDFSample3f()
@@ -122,16 +110,11 @@ class MyBSDF(mi.BSDF):
 
         wi = si.wi
         wo = bs.wo
-
+        
         theta_h, theta_d, phi_d = std_to_half_diff(wi, wo)
-
-        # theta_h = torch.clip(theta_h, 0, np.pi / 2)
-        # theta_d = torch.clip(theta_d, 0, np.pi / 2)
-        # phi_d = torch.clip(phi_d, 0, np.pi)
-
-        conca_in = torch.stack([theta_h, theta_d, phi_d], dim=1)
-
-        value = model_global(conca_in)
+        
+        z_temp = z.repeat(1,theta_h.shape[0], 1)
+        value = module(z_temp[0], z_temp[1],phi_d, theta_h, theta_d)
         value = value
         value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
 
@@ -145,13 +128,9 @@ class MyBSDF(mi.BSDF):
 
         theta_h, theta_d, phi_d = std_to_half_diff(wi, wo)
 
-        # theta_h = torch.clip(theta_h, 0, np.pi / 2)
-        # theta_d = torch.clip(theta_d, 0, np.pi / 2)
-        # phi_d = torch.clip(phi_d, 0, np.pi)
 
-        conca_in = torch.stack([theta_h, theta_d, phi_d], dim=1)
-
-        value = model_global(conca_in)
+        z_temp = z.repeat(1,theta_h.shape[0], 1)
+        value = module(z_temp[0], z_temp[1], phi_d, theta_h, theta_d)
         # value = value.detach().cpu().numpy()
         value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
         return dr.select(
@@ -193,8 +172,9 @@ if __name__ == "__main__":
     # print(params)
     SPP = 16
     spp = SPP * 256
+
+    seed = 0
     with torch.no_grad():
-        seed = 0
         image = mi.render(scene, spp=SPP, seed=seed).numpy()
         print(image.shape)
         for _ in tqdm(range(spp // SPP)):
@@ -202,7 +182,7 @@ if __name__ == "__main__":
             seed += 1
         image /= (spp // SPP) + 1
 
-        mi.util.write_bitmap("cuda_learned.png", image)
+        mi.util.write_bitmap("cuda_learned_1.png", image)
         end_time = time.time()
 
     print("Render time: " + str(end_time - start_time) + " seconds")

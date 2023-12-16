@@ -11,7 +11,7 @@ start_time = time.time()
 mi.register_bsdf("mybsdf", lambda props: MyBSDF(props))
 # scene = mi.load_file("./disney_bsdf_test/disney_diffuse.xml")
 
-scene = mi.load_file("./matpreview/scene.xml")
+scene = mi.load_file("./scenes/matpreview/matpreview.xml")
 params = mi.traverse(scene)
 # print(params)
 SPP = 1
