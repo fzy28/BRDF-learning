@@ -30,13 +30,17 @@ class MyBSDF(mi.BSDF):
 
         
         bs = mi.BSDFSample3f()
-        bs.wo = mi.warp.square_to_beckmann(sample2, self.alpha)
-        bs.pdf = mi.warp.square_to_beckmann_pdf(bs.wo, self.alpha)
+        # bs.wo = mi.warp.square_to_beckmann(sample2, self.alpha)
+        # bs.pdf = mi.warp.square_to_beckmann_pdf(bs.wo, self.alpha)
+        bs.wo = mi.warp.square_to_cosine_hemisphere(sample2)
+        bs.pdf = mi.warp.square_to_cosine_hemisphere_pdf(bs.wo)
         bs.eta = 1.0
         bs.sampled_type = mi.UInt32(+self.m_flags)
         bs.sampled_component = 0
 
-        value = self.albedo * dr.inv_pi 
+        cos_theta_o = mi.Frame3f.cos_theta(bs.wo)
+        
+        value = self.albedo * dr.inv_pi / bs.pdf * cos_theta_o
 
         
         return (bs, dr.select(active & (bs.pdf > 0.0), value, mi.Vector3f(0)))
@@ -48,7 +52,7 @@ class MyBSDF(mi.BSDF):
 
         value = self.albedo
 
-        value = value * dr.inv_pi 
+        value = value * dr.inv_pi * cos_theta_o
 
         return dr.select(
             (cos_theta_i > 0.0) & (cos_theta_o > 0.0), value, mi.Vector3f(0)
@@ -59,8 +63,9 @@ class MyBSDF(mi.BSDF):
 
         cos_theta_i = mi.Frame3f.cos_theta(si.wi)
         cos_theta_o = mi.Frame3f.cos_theta(wo)
-
-        pdf = mi.warp.square_to_beckmann_pdf(wo,self.alpha)
+        # pdf = mi.warp.square_to_beckmann_pdf(wo,self.alpha)
+        pdf = mi.warp.square_to_cosine_hemisphere_pdf(wo)
+        #pdf = mi.warp.square_to_beckmann_pdf(wo,self.alpha)
 
         return dr.select((cos_theta_i > 0.0) & (cos_theta_o > 0.0), pdf, 0.0)
 
@@ -86,7 +91,7 @@ if __name__ == "__main__":
     scene = mi.load_file("./matpreview/scene.xml")
     #params = mi.traverse(scene)
     #print(params)
-    image = mi.render(scene, spp=256) 
+    image = mi.render(scene, spp=1024) 
     
     mi.util.write_bitmap("my_first_render4.png", image)
     end_time = time.time()

@@ -1,41 +1,7 @@
-    \hfill % 添加一些水平间距
-    \begin{subfigure}[b]{0.2\textwidth}
-        \includegraphics[height=4cm]{sec/imgs/lego/24999.png}
-        \caption{25k iters }
-        \label{fig:sub5}
-    \end{subfigure}
+Just some interesting findings of my course project.
 
-    \hfill % 添加一些水平间距
-    \begin{subfigure}[b]{0.2\textwidth}
-        \includegraphics[height=4cm]{sec/imgs/lego/29999.png}
-        \caption{30k iters }
-        \label{fig:sub6}
-    \end{subfigure}
+I trained an MLP to fit a single measured BRDF, and I conducted some simple comparisons with the results from the paper 'A Compact Representation of Measured BRDFs Using Neural Processes,' available at https://dl.acm.org/doi/10.1145/3490385.
 
-    \hfill % 添加一些水平间距
-    \begin{subfigure}[b]{0.2\textwidth}
-        \includegraphics[height=4cm]{sec/imgs/lego/34999.png}
-        \caption{35k iters }
-        \label{fig:sub7}
-    \end{subfigure}
+The values of the slices showed that my BSDF results are much stronger than theirs, but there wasn't much change in the actual rendering process. The influence of the cosine term is really powerful.
 
-        \hfill % 添加一些水平间距
-    \begin{subfigure}[b]{0.2\textwidth}
-        \includegraphics[height=4cm]{sec/imgs/lego/39999.png}
-        \caption{40k iters }
-        \label{fig:sub8}
-    \end{subfigure}
 
-    \hfill % 添加一些水平间距
-    \begin{subfigure}[b]{0.2\textwidth}
-        \includegraphics[height=4cm]{sec/imgs/lego/44999.png}
-        \caption{45k iters }
-        \label{fig:sub9}
-    \end{subfigure}
-
-            \hfill % 添加一些水平间距
-    \begin{subfigure}[b]{0.2\textwidth}
-        \includegraphics[height=4cm]{sec/imgs/lego/gt.png}
-        \caption{ground truth }
-        \label{fig:sub10}
-    \end{subfigure}

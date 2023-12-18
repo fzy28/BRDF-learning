@@ -169,7 +169,7 @@ class MyBSDF(mi.BSDF):
             MeasuredBRDF_global = torch.from_numpy(MeasuredBRDF_global).float().to(device)
         # Set the BSDF flags
         reflection_flags = (
-            mi.BSDFFlags.DiffuseReflection 
+            mi.BSDFFlags.Glossy
             | mi.BSDFFlags.FrontSide
         )
         self.m_components = [reflection_flags]
@@ -218,7 +218,7 @@ class MyBSDF(mi.BSDF):
 
         wi = si.wi
         wo = bs.wo
-
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
         theta_h, theta_d, phi_d = std_to_half_diff(wi, wo)
         
         # wi = si.to_world(si.wi)
@@ -230,7 +230,7 @@ class MyBSDF(mi.BSDF):
         # wolocal = mi.Vector3f(dr.dot(wo, s), dr.dot(wo, t), dr.dot(wo, n))
 
         value = self.half_diff_look_up_brdf(theta_h, theta_d, phi_d)
-        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2]) 
+        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2]) / bs.pdf * cos_theta_o
 
         return (bs, dr.select(active & (bs.pdf > 0.0), value, mi.Vector3f(0)))
 
@@ -249,9 +249,9 @@ class MyBSDF(mi.BSDF):
         # theta_d = torch.clip(theta_d, 0, np.pi / 2)
         
         
-        value = self.half_diff_look_up_brdf(theta_h, theta_d, phi_d)
+        value = self.half_diff_look_up_brdf(theta_h, theta_d, phi_d) 
         # value = value.detach().cpu().numpy()
-        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
+        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])* cos_theta_o
         return dr.select(
             (cos_theta_i > 0.0) & (cos_theta_o > 0.0), value, mi.Vector3f(0)
         )

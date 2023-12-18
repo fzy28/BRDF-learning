@@ -76,7 +76,7 @@
         <transform name="to_world">
             <matrix value="1 0 0 0 0 1 0 0 0 0 1 0.0252155 0 0 0 1" />
         </transform>
-        <ref name="bsdf" id="bsdf-diffuse" />
+        <ref name="bsdf" id="bsdf-matpreview" />
     </shape>
 
     <shape type="serialized" id="shape-matpreview-exterior">

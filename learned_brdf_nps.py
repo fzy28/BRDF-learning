@@ -112,11 +112,11 @@ class MyBSDF(mi.BSDF):
         wo = bs.wo
         
         theta_h, theta_d, phi_d = std_to_half_diff(wi, wo)
-        
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
         z_temp = z.repeat(1,theta_h.shape[0], 1)
         value = module(z_temp[0], z_temp[1],phi_d, theta_h, theta_d)
-        value = value
-        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
+        value = value.clamp(0, None)
+        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2]) * cos_theta_o / bs.pdf
 
         return (bs, dr.select(active & (bs.pdf > 0.0), value, mi.Vector3f(0)))
 
@@ -131,8 +131,9 @@ class MyBSDF(mi.BSDF):
 
         z_temp = z.repeat(1,theta_h.shape[0], 1)
         value = module(z_temp[0], z_temp[1], phi_d, theta_h, theta_d)
+        value = value.clamp(0, None)
         # value = value.detach().cpu().numpy()
-        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
+        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2]) * cos_theta_o
         return dr.select(
             (cos_theta_i > 0.0) & (cos_theta_o > 0.0), value, mi.Vector3f(0)
         )
@@ -171,7 +172,7 @@ if __name__ == "__main__":
     params = mi.traverse(scene)
     # print(params)
     SPP = 16
-    spp = SPP * 256
+    spp = SPP * 16
 
     seed = 0
     with torch.no_grad():

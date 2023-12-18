@@ -122,7 +122,7 @@ class MyBSDF(mi.BSDF):
 
         wi = si.wi
         wo = bs.wo
-
+        cos_theta_o = mi.Frame3f.cos_theta(wo)
         theta_h, theta_d, phi_d = std_to_half_diff(wi, wo)
 
         # theta_h = torch.clip(theta_h, 0, np.pi / 2)
@@ -132,8 +132,8 @@ class MyBSDF(mi.BSDF):
         conca_in = torch.stack([theta_h, theta_d, phi_d], dim=1)
 
         value = model_global(conca_in)
-        value = value
-        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
+        value = torch.clamp(value, 0, None)
+        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2]) / bs.pdf * cos_theta_o
 
         return (bs, dr.select(active & (bs.pdf > 0.0), value, mi.Vector3f(0)))
 
@@ -152,8 +152,10 @@ class MyBSDF(mi.BSDF):
         conca_in = torch.stack([theta_h, theta_d, phi_d], dim=1)
 
         value = model_global(conca_in)
+        value = torch.clamp(value, 0, None)
+
         # value = value.detach().cpu().numpy()
-        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2])
+        value = mi.Vector3f(value[..., 0], value[..., 1], value[..., 2]) * cos_theta_o
         return dr.select(
             (cos_theta_i > 0.0) & (cos_theta_o > 0.0), value, mi.Vector3f(0)
         )
